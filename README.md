@@ -50,7 +50,6 @@ mlm score \
     --model bert-base-en-uncased \
     --max-utts 3 \
     --gpus 0 \
-    --split-size 100 \
     examples/asr-librispeech-espnet/data/dev-other.am.json \
     > examples/demo/dev-other-3.lm.json
 ```

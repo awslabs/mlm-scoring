@@ -82,12 +82,12 @@ def main() -> None:
                         help="Scoring references (.txt, .json 'refs') vs. hypotheses (.json 'hyp_*')")
     parser_score.add_argument('--temp', type=float, default=1.0,
                         help="softmax temperature")
-    parser_score.add_argument('--split-size', type=int, default=2000,
+    parser_score.add_argument('--split-size', type=int, default=500,
                         help="split size (per GPU)")
     parser_score.add_argument('--no-mask', action='store_true',
                         help="Instead of making masked copies, do not mask")
-    parser_score.add_argument('--no-eos', action='store_true',
-                        help="do not append '.' (this may break train-test parity)")
+    parser_score.add_argument('--eos', action='store_true',
+                        help="append '.' (this can help mitigate train-test disparity)")
     parser_score.add_argument('--detok', action='store_true',
                         help="perform Moses English detokenization on hypotheses before scoring")
 
@@ -114,8 +114,8 @@ def main() -> None:
                         help="split size (per GPU)")
     parser_bin.add_argument('--no-mask', action='store_true',
                         help="Instead of making masked copies, do not mask")
-    parser_bin.add_argument('--no-eos', action='store_true',
-                        help="do not append '.' (this breaks train-test parity)")
+    parser_bin.add_argument('--eos', action='store_true',
+                        help="append '.' (this can help mitigate train-test disparity)")
     capitalize_parser = parser_bin.add_mutually_exclusive_group(required=False)
     capitalize_parser.add_argument('--capitalize', dest='capitalize', action='store_true')
     capitalize_parser.add_argument('--no-capitalize', dest='capitalize', action='store_false')
@@ -160,8 +160,8 @@ def main() -> None:
                         help="Number of initial layers to freeze")
 
     # TODO: deduplicate
-    parser_finetune.add_argument('--no-eos', action='store_true',
-                        help="do not append '.' (this breaks train-test parity)")
+    parser_finetune.add_argument('--eos', action='store_true',
+                        help="append '.' (this can help mitigate train-test disparity)")
     capitalize_parser = parser_finetune.add_mutually_exclusive_group(required=False)
     capitalize_parser.add_argument('--capitalize', dest='capitalize', action='store_true')
     capitalize_parser.add_argument('--no-capitalize', dest='capitalize', action='store_false')
@@ -191,13 +191,13 @@ def cmd_score(args: argparse.Namespace) -> None:
 
     # Set scorer
     if isinstance(model, nlp.model.BERTModel):
-        scorer = MLMScorer(model, vocab, tokenizer, eos=(not args.no_eos), wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
+        scorer = MLMScorer(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
     elif isinstance(model, BERTRegression):
-        scorer = RegressionScorer(model, vocab, tokenizer, eos=(not args.no_eos), wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
+        scorer = RegressionScorer(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
     else:
         assert not args.whole_word_mask
         assert not args.no_mask
-        scorer = LMScorer(model, vocab, tokenizer, eos=(not args.no_eos), capitalize=args.capitalize, ctxs=ctxs)
+        scorer = LMScorer(model, vocab, tokenizer, eos=args.eos, capitalize=args.capitalize, ctxs=ctxs)
 
     # What data do we use?
     if args.mode == 'hyp':
@@ -225,18 +225,21 @@ def cmd_score(args: argparse.Namespace) -> None:
     scored_corpus = ScoredCorpus.from_corpus_and_scores(corpus, scores)
 
     num_words_list, max_sent_len = corpus.get_num_words()
-    if not args.no_eos:
+    if args.eos:
         logging.warn("Adding EOSes '.' to (P)PPL computation")
         num_words_list = [x+1 for x in num_words_list]
     num_words_total = sum(num_words_list)
-    logging.warn("# words (no added markers): {}".format(num_words_total))
+    if args.eos:
+        logging.warn("# words (excluding EOS '.'): {}".format(num_words_total))
+    else:
+        logging.warn("# words: {}".format(num_words_total))
     logging.warn("longest sentence: {}".format(max_sent_len))
 
     num_toks_total = sum(true_tok_lens)
-    if not args.no_eos:
-        logging.warn("# toks (including EOS '.'): {}".format(num_toks_total))
+    if args.eos:
+        logging.warn("# tokens (including EOS '.'): {}".format(num_toks_total))
     else:
-        logging.warn("# toks: {}".format(num_toks_total))
+        logging.warn("# tokens: {}".format(num_toks_total))
 
 
     if not args.per_token:
@@ -285,13 +288,13 @@ def cmd_bin(args: argparse.Namespace) -> None:
     if isinstance(model, nlp.model.BERTModel):
         assert not args.whole_word_mask
         assert not args.no_mask
-        binner = MLMBinner(model, vocab, tokenizer, eos=(not args.no_eos), capitalize=args.capitalize, ctxs=ctxs)
+        binner = MLMBinner(model, vocab, tokenizer, eos=args.eos, capitalize=args.capitalize, ctxs=ctxs)
     elif isinstance(model, BERTRegression):
         raise ValueError("Not supported")
     else:
         assert not args.whole_word_mask
         assert not args.no_mask
-        binner = LMBinner(model, vocab, tokenizer, eos=(not args.no_eos), capitalize=args.capitalize, ctxs=ctxs)
+        binner = LMBinner(model, vocab, tokenizer, eos=args.eos, capitalize=args.capitalize, ctxs=ctxs)
 
     # What data do we use?
     if args.mode == 'hyp':
@@ -419,5 +422,5 @@ def cmd_finetune(args: argparse.Namespace) -> None:
 
     ### FINETUNING LOOP
 
-    tuner = RegressionFinetuner(model, vocab, tokenizer, eos=(not args.no_eos), wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
+    tuner = RegressionFinetuner(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
     tuner.tune(scored_corpus, ratio=1, split_size=args.split_size, output_dir=Path(args.output_dir))

@@ -21,7 +21,6 @@ for set in dev ; do
                 --mode hyp \
                 --model ${model} \
                 --gpus 0 \
-                --no-eos \
                 --split-size 500 \
                 ${PREFIX_DIR}/${set}.${src}.bpe.beam_trans.nobpe \
                 > output/${model}/${set}-${pair}.lm.json

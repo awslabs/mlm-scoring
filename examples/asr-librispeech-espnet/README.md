@@ -19,6 +19,7 @@ for set in dev-clean dev-other test-clean test-other ; do
             --model ${model} \
             --gpus 0,1,2,3 \
             --split-size 2000 \
+            --eos \
             data/${set}.am.json \
             > output/${model}/${set}.lm.json
     done
@@ -34,6 +35,7 @@ for set in dev-clean dev-other test-clean test-other ; do
             --gpus 0,1,2,3 \
             --split-size 2000 \
             --weights params/bert-base-en-uncased-380k.params \
+            --eos \
             data/${set}.am.json \
             > output/${model}-380k/${set}.lm.json
     done
@@ -107,6 +109,7 @@ mkdir -p output-distill/${model}/params-1e-5_8gpu_384/
 mlm finetune \
     --model ${model} \
     --gpus 0,1,2,3,4,5,6,7 \
+    --eos \
     --corpus-dir output-distill \
     --score-dir output-distill/${model} \
     --output-dir output-distill/${model}/params-1e-5_8gpu_384/ \
@@ -124,6 +127,7 @@ for set in dev-clean ; do
         --model ${model} \
         --gpus 0 \
         --weights output-distill/${model}/params-1e-5_8gpu_384/epoch-10.params \
+        --eos \
         --no-mask \
         --split-size 500 \
         data/${set}.am.json \

@@ -26,7 +26,6 @@ for file in data/* ; do
             --model ${model} \
             --gpus 0 \
             --split-size 500 \
-            --no-eos \
             ${file} \
             > output/${model}/$(basename ${file} .txt).lm.json
     done
@@ -54,7 +53,6 @@ for suffix in good.txt bad.txt ; do
             --model ${model} \
             --gpus 0 \
             --split-size 1500 \
-            --no-eos \
             data-concat/${suffix} \
             > output/${model}.${suffix}
     done
