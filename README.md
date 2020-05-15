@@ -9,6 +9,8 @@ This package uses masked LMs like [BERT](https://arxiv.org/abs/1810.04805), [RoB
 
 **Paper:** Julian Salazar, Davis Liang, Toan Q. Nguyen, Katrin Kirchhoff. "[Masked Language Model Scoring](https://arxiv.org/abs/1910.14659)", ACL 2020.
 
+<p align="center"><img src="mlm-scoring.png" width="750px"></p>
+
 ## Installation
 
 Python 3.6+ is required. Clone this repository and install:
@@ -16,11 +18,7 @@ Python 3.6+ is required. Clone this repository and install:
 pip install -e .
 pip install torch mxnet-cu102mkl  # Replace w/ your CUDA version; mxnet-mkl if CPU only.
 ```
-Some models are via [GluonNLP](https://github.com/dmlc/gluon-nlp) and others are via [🤗 Transformers](https://github.com/huggingface/transformers), so for now we require both [MXNet](https://mxnet.apache.org/) and [PyTorch](https://pytorch.org/).
-
-## Quick start
-
-To integrate scoring with your application:
+Some models are via [GluonNLP](https://github.com/dmlc/gluon-nlp) and others are via [🤗 Transformers](https://github.com/huggingface/transformers), so for now we require both [MXNet](https://mxnet.apache.org/) and [PyTorch](https://pytorch.org/). You can now import the library directly:
 ```python
 from mlm.scorers import MLMScorer
 from mlm.models import get_pretrained
