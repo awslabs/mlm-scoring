@@ -2,11 +2,12 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-This package uses masked LMs like [BERT](https://arxiv.org/abs/1810.04805), [RoBERTa](https://arxiv.org/abs/1907.11692), and [XLM](https://papers.nips.cc/paper/8928-cross-lingual-language-model-pretraining.pdf) to [score sentences](#scoring) and [rescore n-best lists](#rescoring) via *pseudo-log-likelihood scores*, which are computed by masking individual words. We also support autoregressive LMs like [GPT-2](https://openai.com/blog/better-language-models/).
+This package uses masked LMs like [BERT](https://arxiv.org/abs/1810.04805), [RoBERTa](https://arxiv.org/abs/1907.11692), and [XLM](https://papers.nips.cc/paper/8928-cross-lingual-language-model-pretraining.pdf) to [score sentences](#scoring) and [rescore n-best lists](#rescoring) via *pseudo-log-likelihood scores*, which are computed by masking individual words. We also support autoregressive LMs like [GPT-2](https://openai.com/blog/better-language-models/). Example uses include:
+- [Speech Recognition](examples/asr-librispeech-espnet): Rescoring an ESPnet LAS model (LibriSpeech)
+- [Machine Translation](examples/nmt-tedtalks-ace): Rescoring a Transformer NMT model (IWSLT'15 en-vi)
+- [Linguistic Acceptability](examples/lingacc-blimp): Unsupervised ranking within linguistic minimal pairs (BLiMP)
 
-[Experiments](#examples) in automatic speech recognition (ASR), neural machine translation (NMT), and linguistic acceptability are included.
-
-**Reference:** Julian Salazar, Davis Liang, Toan Q. Nguyen, Katrin Kirchhoff. "[Masked Language Model Scoring](https://arxiv.org/abs/1910.14659)", ACL 2020 (long paper).
+**Paper:** Julian Salazar, Davis Liang, Toan Q. Nguyen, Katrin Kirchhoff. "[Masked Language Model Scoring](https://arxiv.org/abs/1910.14659)", ACL 2020.
 
 ## Installation
 
@@ -33,7 +34,7 @@ print(scorer.score_sentences(["Hello world!"]))
 print(scorer.score_sentences(["Hello world!"], per_token=True))
 ```
 
-### Scoring
+## Scoring
 
 Run `mlm score --help` to see supported models, etc. See `examples/demo/format.json` for the file format. For inputs, "score" is optional. Outputs will add "score" fields containing PLL scores.
 
@@ -54,7 +55,7 @@ mlm score \
     > examples/demo/dev-other-3.lm.json
 ```
 
-### Rescoring
+## Rescoring
 
 One can rescore n-best lists via log-linear interpolation. Run `mlm rescore --help` to see all options. Input one is a file with original scores; input two are scores from `mlm score`.
 
@@ -72,13 +73,12 @@ done
 ```
 The original WER is 12.2% while the rescored WER is 8.5%.
 
-### Maskless finetuning
+## Maskless finetuning
 
 One can finetune masked LMs to give usable PLL scores without masking. See [LibriSpeech maskless finetuning](examples/asr-librispeech-espnet/README.md#maskless-finetuning).
 
-## Examples
+## Development
 
-The following correspond to experiments from the paper:
-- [Speech Recognition > LibriSpeech > ESPnet (encoder-decoder)](examples/asr-librispeech-espnet/README.md)
-- [Machine Translation > TED Talks / IWSLT'15 en-vi > Ace (Transformers w/o Tears)](examples/nmt-tedtalks-ace/README.md)
-- [Linguistic Acceptability > BLiMP](examples/lingacc-blimp/README.md)
+Run `pip install -e .[dev]` to install extra testing packages. Then:
+
+- To run unit tests and coverage, run `pytest --cov=src/mlm` in the root directory.

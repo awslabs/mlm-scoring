@@ -17,8 +17,17 @@ setup(
         'gluonnlp~=0.8.3',
         'regex',
         'sacrebleu',
-        'mosestokenizer'
+        'mosestokenizer',
+        'transformers'
     ],
+
+    extras_require={
+        'dev': [
+            'pytest',
+            'pytest-cov',
+            'mypy'
+        ]
+    },
 
     # Needed for static type checking
     # https://mypy.readthedocs.io/en/latest/installed_packages.html
