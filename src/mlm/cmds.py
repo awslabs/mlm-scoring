@@ -233,22 +233,25 @@ def cmd_score(args: argparse.Namespace) -> None:
     logging.warn("longest sentence: {}".format(max_sent_len))
 
     num_toks_total = sum(true_tok_lens)
-    logging.warn("# toks (including EOS '.'): {}".format(num_toks_total))
+    if not args.no_eos:
+        logging.warn("# toks (including EOS '.'): {}".format(num_toks_total))
+    else:
+        logging.warn("# toks: {}".format(num_toks_total))
 
 
     if not args.per_token:
         plls = np.array(scores)
         pppl_tok_micro = np.exp(- plls.sum() / num_toks_total).item()
-        logging.warn("Token-level (P)PPL, micro: {}".format(pppl_tok_micro))
+        logging.warn("Token-level (P)PPL: {}".format(pppl_tok_micro))
 
-        pppl_tok_macro = np.exp(- (plls / np.array(true_tok_lens)).mean())
-        logging.warn("Token-level (P)PPL, macro: {}".format(pppl_tok_macro))
+        # pppl_tok_macro = np.exp(- (plls / np.array(true_tok_lens)).mean())
+        # logging.warn("Token-level (P)PPL, macro: {}".format(pppl_tok_macro))
 
         pppl_word_micro = math.exp((num_toks_total / num_words_total) * math.log(pppl_tok_micro))
-        logging.warn("Word-normalized (P)PPL, micro: {}".format(pppl_word_micro))
+        logging.warn("Word-normalized (P)PPL: {}".format(pppl_word_micro))
 
-        pppl_word_macro = np.exp(- (plls / np.array(num_words_list)).mean())
-        logging.warn("Word-normalized (P)PPL, macro: {}".format(pppl_word_macro))
+        # pppl_word_macro = np.exp(- (plls / np.array(num_words_list)).mean())
+        # logging.warn("Word-normalized (P)PPL, macro: {}".format(pppl_word_macro))
 
     # === END SHARED COMPUTATION ===
 
