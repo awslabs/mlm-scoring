@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from setuptools import find_packages, setup
 
@@ -18,11 +18,12 @@ setup(
         'regex',
         'sacrebleu',
         'mosestokenizer',
-        'transformers'
+        'transformers~=2.9.1'
     ],
 
     extras_require={
         'dev': [
+            'pylint',
             'pytest',
             'pytest-cov',
             'mypy'

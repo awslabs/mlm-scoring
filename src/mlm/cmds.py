@@ -8,14 +8,18 @@ import random
 import sys
 from typing import List, TextIO
 
+import numpy as np
+# MXNet-based
 import gluonnlp as nlp
 import mxnet as mx
-import numpy as np
+# PyTorch-based
+import torch
+import transformers
 
 from .loaders import Predictions, Corpus, ScoredCorpus
 from .models import get_pretrained, SUPPORTED
-from .models.bert import BERTRegression
-from .scorers import LMScorer, LMBinner, MLMScorer, MLMBinner, RegressionFinetuner, RegressionScorer
+from .models.bert import BERTRegression, BertForMaskedLMOptimized
+from .scorers import LMScorer, LMBinner, MLMScorer, MLMScorerPT, MLMBinner, RegressionFinetuner, RegressionScorer
 
 
 def _shared_args(parser: argparse.ArgumentParser) -> None:
@@ -24,7 +28,7 @@ def _shared_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--max-utts', type=int,
                         help="maximum utterances to parse")
     parser.add_argument('--model', type=str,
-                        help="Model to (re)score; comma-delimited list of {}".format(SUPPORTED))
+                        help="Model to (re)score   -   HuggingFace models: 'bert-*', 'xlm-*'   -   GluonNLP models: {}".format(SUPPORTED))
     parser.add_argument('--weights', type=str, default=None,
                         help="Model weights to load")
 
@@ -86,6 +90,8 @@ def main() -> None:
                         help="split size (per GPU)")
     parser_score.add_argument('--no-mask', action='store_true',
                         help="Instead of making masked copies, do not mask")
+    parser_score.add_argument('--tgt', type=str, default='en',
+                        help="Code to use for language embeddings, where appropriate")
     parser_score.add_argument('--eos', action='store_true',
                         help="append '.' (this can help mitigate train-test disparity)")
     parser_score.add_argument('--detok', action='store_true',
@@ -191,7 +197,11 @@ def cmd_score(args: argparse.Namespace) -> None:
 
     # Set scorer
     if isinstance(model, nlp.model.BERTModel):
+        # GluonNLP
         scorer = MLMScorer(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
+    elif isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, BertForMaskedLMOptimized):
+        # Transformers
+        scorer = MLMScorerPT(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs, lang=args.tgt)
     elif isinstance(model, BERTRegression):
         scorer = RegressionScorer(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
     else:
