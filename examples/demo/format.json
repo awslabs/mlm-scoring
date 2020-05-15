@@ -1,0 +1,16 @@
+{
+	"1272-128104-0000":
+	{
+		 "hyp_1": {
+		 	"score": -1.234,
+		 	"text": "the best hypothesis"
+		 },
+		 ...
+		 "hyp_100": {
+		 	"score": -20.234,
+		 	"text": "the worst hypothesis"
+		 },
+		 "ref": "the reference"
+	},
+	...
+}
