@@ -20,24 +20,32 @@ pip install torch mxnet-cu102mkl  # Replace w/ your CUDA version; mxnet-mkl if C
 ```
 Some models are via [GluonNLP](https://github.com/dmlc/gluon-nlp) and others are via [🤗 Transformers](https://github.com/huggingface/transformers), so for now we require both [MXNet](https://mxnet.apache.org/) and [PyTorch](https://pytorch.org/). You can now import the library directly:
 ```python
-from mlm.scorers import MLMScorer, MLMScorerPT
+from mlm.scorers import MLMScorer, MLMScorerPT, LMScorer
 from mlm.models import get_pretrained
 import mxnet as mx
 ctxs = [mx.gpu()]
 
-# MXNet (use names from mlm.models.SUPPORTED)
+# MXNet MLMs (use names from mlm.models.SUPPORTED_MLMS)
 model, vocab, tokenizer = get_pretrained(ctxs, 'bert-base-en-cased')
 scorer = MLMScorer(model, vocab, tokenizer, ctxs)
-# [-12.410664200782776]
 print(scorer.score_sentences(["Hello world!"]))
-# [[None, -6.126736640930176, -5.501412391662598, -0.7825151681900024, None]]
+# >> [-12.410664200782776]
 print(scorer.score_sentences(["Hello world!"], per_token=True))
+# >> [[None, -6.126736640930176, -5.501412391662598, -0.7825151681900024, None]]
 
-# EXPERIMENTAL: PyTorch (use names from https://huggingface.co/transformers/pretrained_models.html)
+# EXPERIMENTAL: PyTorch MLMs (use names from https://huggingface.co/transformers/pretrained_models.html)
 model, vocab, tokenizer = get_pretrained(ctxs, 'bert-base-cased')
 scorer = MLMScorerPT(model, vocab, tokenizer, ctxs)
-# [-12.411025047302246]
 print(scorer.score_sentences(["Hello world!"]))
+# >> [-12.411025047302246]
+
+# MXNet LMs (use names from mlm.models.SUPPORTED_LMS)
+model, vocab, tokenizer = get_pretrained(ctxs, 'gpt2-117m-en-cased')
+scorer = LMScorer(model, vocab, tokenizer, ctxs)
+print(scorer.score_sentences(["Hello world!"]))
+# >> [-15.995375633239746]
+print(scorer.score_sentences(["Hello world!"]), per_token=True)
+# >> [[-8.293947219848633, -6.387561798095703, -1.3138668537139893]]
 ```
 (MXNet and PyTorch interfaces will be unified soon!)
 

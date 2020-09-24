@@ -196,18 +196,20 @@ def cmd_score(args: argparse.Namespace) -> None:
         model, vocab, tokenizer = get_pretrained(ctxs, args.model, weights_file, regression=args.no_mask)
 
     # Set scorer
-    if isinstance(model, nlp.model.BERTModel):
+    if MLMScorer._check_support(model):
         # GluonNLP
         scorer = MLMScorer(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
-    elif isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, BertForMaskedLMOptimized):
+    elif MLMScorerPT._check_support(model):
         # Transformers
         scorer = MLMScorerPT(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs, lang=args.tgt)
-    elif isinstance(model, BERTRegression):
+    elif RegressionScorer._check_support(model):
         scorer = RegressionScorer(model, vocab, tokenizer, eos=args.eos, wwm=args.whole_word_mask, capitalize=args.capitalize, ctxs=ctxs)
-    else:
+    elif LMScorer._check_support(model):
         assert not args.whole_word_mask
         assert not args.no_mask
         scorer = LMScorer(model, vocab, tokenizer, eos=args.eos, capitalize=args.capitalize, ctxs=ctxs)
+    else:
+        raise ValueError(f"Model '{model.__class__.__name__}' not supported by any scorer.")
 
     # What data do we use?
     if args.mode == 'hyp':

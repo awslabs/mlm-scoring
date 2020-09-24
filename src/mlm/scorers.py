@@ -17,7 +17,9 @@ import transformers
 from . import batchify as btf_generic
 
 from .loaders import Corpus, ScoredCorpus
-from .models.bert import BertForMaskedLMOptimized
+from .models import SUPPORTED_MLMS, SUPPORTED_LMS
+from .models.bert import BERTRegression, BertForMaskedLMOptimized
+from .models.gpt2 import GPT2Model
 
 
 class BaseScorer(ABC):
@@ -32,6 +34,15 @@ class BaseScorer(ABC):
         self._eos = eos
         self._capitalize = capitalize
         self._max_length = 1024
+        if not self._check_support(model):
+            raise ValueError(f"""
+Model '{model.__class__.__name__}' is not supported by the scorer '{self.__class__.__name__}'.
+- MLMScorer supports MXNet GluonNLP MLMs: {SUPPORTED_MLMS}
+- LMScorer supports MXNet GluonNLP LMs: {SUPPORTED_LMS}
+- MLMScorerPT supports PyTorch Transformers MLMs: BERTForMaskedLMOptimized (a wrapper around 'bert-*'), 'xlm-*', etc.
+""")
+        else:
+            logging.warn(f"Created scorer of class '{self.__class__.__name__}'.")
 
 
     def _apply_tokenizer_opts(self, sent: str) -> str:
@@ -40,6 +51,11 @@ class BaseScorer(ABC):
         if self._capitalize:
             sent = sent.capitalize()
         return sent
+
+
+    @staticmethod
+    def _check_support(model) -> bool:
+        raise NotImplementedError
 
 
     def _corpus_to_data(self, corpus, split_size, ratio, num_workers: int, shuffle: bool=False):
@@ -148,7 +164,6 @@ class BaseScorer(ABC):
         return self.score(corpus, **kwargs)[0]
 
 
-
 class LMScorer(BaseScorer):
 
     def __init__(self, *args, **kwargs):
@@ -157,6 +172,11 @@ class LMScorer(BaseScorer):
         # (GPT-2 does not have a padding token; but the padding token shouldn't matter anyways)
         self._batchify_fn = btf.Tuple(btf.Stack(dtype='int32'), btf.Pad(pad_val=np.iinfo(np.int32).max, dtype='int32'),
                               btf.Stack(dtype='int32'))
+
+
+    @staticmethod
+    def _check_support(model) -> bool:
+        return isinstance(model, GPT2Model)
 
 
     def corpus_to_dataset(self, corpus: Corpus) -> SimpleDataset:
@@ -301,6 +321,11 @@ class MLMScorer(BaseScorer):
         self._add_special = True
 
         super().__init__(*args, **kwargs)
+
+
+    @staticmethod
+    def _check_support(model) -> bool:
+        return isinstance(model, nlp.model.BERTModel)
 
 
     def _ids_to_masked(self, token_ids: np.ndarray) -> List[Tuple[np.ndarray, List[int]]]:
@@ -515,7 +540,6 @@ class MLMScorerPT(BaseScorer):
     """For models that need every token to be masked
     """
 
-
     def __init__(self, *args, **kwargs):
         self._wwm = kwargs.pop('wwm') if 'wwm' in kwargs else False
         self._lang = kwargs.pop('lang') if 'lang' in kwargs else False
@@ -535,6 +559,11 @@ class MLMScorerPT(BaseScorer):
         self._model.to(self._device)
         self._model = torch.nn.DataParallel(self._model, device_ids=[0])
         self._model.eval()
+
+
+    @staticmethod
+    def _check_support(model) -> bool:
+        return isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, BertForMaskedLMOptimized)
 
 
     def _ids_to_masked(self, token_ids: np.ndarray) -> List[Tuple[np.ndarray, List[int]]]:
@@ -942,6 +971,9 @@ class RegressionScorer(BaseScorer):
                               btf.Stack(dtype='float32'))
         # self._max_length = 256
 
+    @staticmethod
+    def _check_support(model) -> bool:
+        return isinstance(model, BERTRegression)
 
     # Almost as RegressionFinetuner, except now it's just Corpus
     def corpus_to_dataset(self, corpus: Corpus) -> SimpleDataset:

@@ -64,7 +64,8 @@ def get_model(name: str, **kwargs) -> Tuple[Block, nlp.Vocab]:
 
 # Shortcodes for MXNet models
 # These should not conflict w/ HuggingFace Transformer's shortcodes
-SUPPORTED = [
+
+SUPPORTED_MLMS = [
     'bert-base-en-uncased',
     'bert-base-en-cased',
     'roberta-base-en-cased',
@@ -73,11 +74,15 @@ SUPPORTED = [
     'roberta-large-en-cased',
     'bert-base-en-uncased-owt',
     'bert-base-multi-uncased',
-    'bert-base-multi-cased',
+    'bert-base-multi-cased'
+]
+
+SUPPORTED_LMS = [
     'gpt2-117m-en-cased',
     'gpt2-345m-en-cased'
 ]
 
+SUPPORTED = SUPPORTED_MLMS + SUPPORTED_LMS
 
 def get_pretrained(ctxs: List[mx.Context], name: str = 'bert-base-en-uncased', params_file: Optional[Path] = None, cased: bool = False, finetune: bool = False, regression: bool = False, freeze: int = 0, root: Optional[Path] = None) -> Tuple[Block, nlp.Vocab, nlp.data.BERTTokenizer]:
 
