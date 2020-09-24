@@ -551,7 +551,7 @@ class MLMScorerPT(BaseScorer):
             logging.warn("Language was set but this model does not use language embeddings!")
 
         ### PyTorch-based
-        self._device = torch.device("cuda:0")
+        self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         torch.manual_seed(0)
         torch.cuda.manual_seed_all(0)
         # TODO: This does not restrict to specific GPUs however, use CUDA_VISIBLE_DEVICES?
@@ -679,7 +679,7 @@ class MLMScorerPT(BaseScorer):
 
             for ctx_idx, (sent_idxs, token_ids, valid_length, masked_positions, token_masked_ids, normalization) in enumerate((batch,)):
 
-                ctx = torch.device("cuda")
+                ctx = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 batch_size += sent_idxs.shape[0]
 
                 # TODO: Super inefficient where we go from MXNet to NumPy to PyTorch
