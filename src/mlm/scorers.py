@@ -18,7 +18,7 @@ from . import batchify as btf_generic
 
 from .loaders import Corpus, ScoredCorpus
 from .models import SUPPORTED_MLMS, SUPPORTED_LMS
-from .models.bert import BERTRegression, BertForMaskedLMOptimized
+from .models.bert import BERTRegression, BertForMaskedLMOptimized, DistilBertForMaskedLMOptimized
 from .models.gpt2 import GPT2Model
 
 
@@ -41,7 +41,8 @@ Model '{model.__class__.__name__}' is not supported by the scorer '{self.__class
 - LMScorer supports MXNet GluonNLP LMs: {SUPPORTED_LMS}
 - MLMScorerPT supports PyTorch Transformers MLMs:
     - 'bert-*' (wrapped by BertForMaskedLMOptimized)
-    - 'xlm-*'
+    - 'distilbert-*' (wrapped by DistilBertForMaskedLMOptimized)
+    - 'xlm-*' (requires lang parameter, e.g, lang='en')
 """)
         else:
             logging.warn(f"Created scorer of class '{self.__class__.__name__}'.")
@@ -564,7 +565,7 @@ class MLMScorerPT(BaseScorer):
 
     @staticmethod
     def _check_support(model) -> bool:
-        return isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, BertForMaskedLMOptimized)
+        return isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, BertForMaskedLMOptimized) or isinstance(model, DistilBertForMaskedLMOptimized)
 
 
     def _ids_to_masked(self, token_ids: np.ndarray) -> List[Tuple[np.ndarray, List[int]]]:
@@ -710,7 +711,8 @@ class MLMScorerPT(BaseScorer):
 
                     split_size = token_ids.shape[0]
 
-                    if isinstance(self._model.module, BertForMaskedLMOptimized):
+                    if isinstance(self._model.module, BertForMaskedLMOptimized) or \
+                        isinstance(self._model.module, DistilBertForMaskedLMOptimized):
                         # Because BERT does not take a length parameter
                         alen = torch.arange(token_ids.shape[1], dtype=torch.long)
                         alen = alen.to(ctx)

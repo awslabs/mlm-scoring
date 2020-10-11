@@ -13,7 +13,7 @@ import torch
 import transformers
 
 from .gpt2 import gpt2_117m, gpt2_345m
-from .bert import BERTRegression, BertForMaskedLMOptimized
+from .bert import BERTRegression, BertForMaskedLMOptimized, DistilBertForMaskedLMOptimized
 
 # get_model() is from:
 # https://github.com/dmlc/gluon-nlp/blob/master/scripts/text_generation/model/__init__.py
@@ -100,24 +100,36 @@ def get_pretrained(ctxs: List[mx.Context], name: str = 'bert-base-en-uncased', p
             tokenizer = transformers.BertTokenizer.from_pretrained(model_fullname)
             vocab = None
 
+        elif model_fullname.startswith('distilbert-'):
+
+            if params_file is None:
+                model, loading_info = DistilBertForMaskedLMOptimized.from_pretrained(model_fullname, output_loading_info=True)
+            else:
+                model, loading_info = DistilBertForMaskedLMOptimized.from_pretrained(params_file, output_loading_info=True)
+
+            tokenizer = transformers.DistilBertTokenizer.from_pretrained(model_fullname)
+            vocab = None
+
         elif model_fullname.startswith('xlm-'):
 
             model, loading_info = transformers.XLMWithLMHeadModel.from_pretrained(model_fullname, output_loading_info=True)
             tokenizer = transformers.XLMTokenizer.from_pretrained(model_fullname)
             vocab = None
 
-            # TODO: The loading code in `transformers` assumes pred_layer is under transformers, so the LM head is not loaded properly. We load manually:
-            archive_file = transformers.XLMWithLMHeadModel.pretrained_model_archive_map[model_fullname]
-            resolved_archive_file = transformers.file_utils.cached_path(archive_file)
-            pretrained_state_dict = torch.load(resolved_archive_file, map_location='cpu')
-            new_state_dict = model.state_dict()
-            new_state_dict.update(
-                {
-                    'pred_layer.proj.weight': pretrained_state_dict['pred_layer.proj.weight'],
-                    'pred_layer.proj.bias': pretrained_state_dict['pred_layer.proj.bias']
-                }
-            )
-            model.load_state_dict(new_state_dict)
+            # TODO: Not needed in transformers v3? Will vet.
+            #
+            # # TODO: The loading code in `transformers` assumes pred_layer is under transformers, so the LM head is not loaded properly. We load manually:
+            # archive_file = transformers.XLMWithLMHeadModel.pretrained_model_archive_map[model_fullname]
+            # resolved_archive_file = transformers.file_utils.cached_path(archive_file)
+            # pretrained_state_dict = torch.load(resolved_archive_file, map_location='cpu')
+            # new_state_dict = model.state_dict()
+            # new_state_dict.update(
+            #     {
+            #         'pred_layer.proj.weight': pretrained_state_dict['pred_layer.proj.weight'],
+            #         'pred_layer.proj.bias': pretrained_state_dict['pred_layer.proj.bias']
+            #     }
+            # )
+            # model.load_state_dict(new_state_dict)
 
         else:
             raise ValueError("Model '{}' is not currently a supported PyTorch model".format(name))
