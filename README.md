@@ -56,7 +56,7 @@ print(scorer.score_sentences(["Hello world!"], per_token=True))
 Run `mlm score --help` to see supported models, etc. See `examples/demo/format.json` for the file format. For inputs, "score" is optional. Outputs will add "score" fields containing PLL scores.
 
 There are three score types, depending on the model:
-- Pseudo-log-likelihood score (PLL): BERT, RoBERTa, multilingual BERT, XLM, DistilBERT
+- Pseudo-log-likelihood score (PLL): BERT, RoBERTa, multilingual BERT, XLM, ALBERT, DistilBERT
 - Maskless PLL score: same (add `--no-mask`)
 - Log-probability score: GPT-2
 

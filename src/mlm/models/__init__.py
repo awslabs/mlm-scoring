@@ -13,7 +13,7 @@ import torch
 import transformers
 
 from .gpt2 import gpt2_117m, gpt2_345m
-from .bert import BERTRegression, BertForMaskedLMOptimized, DistilBertForMaskedLMOptimized
+from .bert import BERTRegression, AlbertForMaskedLMOptimized, BertForMaskedLMOptimized, DistilBertForMaskedLMOptimized
 
 # get_model() is from:
 # https://github.com/dmlc/gluon-nlp/blob/master/scripts/text_generation/model/__init__.py
@@ -90,7 +90,17 @@ def get_pretrained(ctxs: List[mx.Context], name: str = 'bert-base-en-uncased', p
         logging.warn("Model '{}' not recognized as an MXNet model; treating as PyTorch model".format(name))
         model_fullname = name
 
-        if model_fullname.startswith('bert-'):
+        if model_fullname.startswith('albert-'):
+
+            if params_file is None:
+                model, loading_info = AlbertForMaskedLMOptimized.from_pretrained(model_fullname, output_loading_info=True)
+            else:
+                model, loading_info = AlbertForMaskedLMOptimized.from_pretrained(params_file, output_loading_info=True)
+
+            tokenizer = transformers.AlbertTokenizer.from_pretrained(model_fullname)
+            vocab = None
+
+        elif model_fullname.startswith('bert-'):
 
             if params_file is None:
                 model, loading_info = BertForMaskedLMOptimized.from_pretrained(model_fullname, output_loading_info=True)

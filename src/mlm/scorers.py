@@ -18,7 +18,7 @@ from . import batchify as btf_generic
 
 from .loaders import Corpus, ScoredCorpus
 from .models import SUPPORTED_MLMS, SUPPORTED_LMS
-from .models.bert import BERTRegression, BertForMaskedLMOptimized, DistilBertForMaskedLMOptimized
+from .models.bert import BERTRegression, AlbertForMaskedLMOptimized, BertForMaskedLMOptimized, DistilBertForMaskedLMOptimized
 from .models.gpt2 import GPT2Model
 
 
@@ -40,9 +40,10 @@ Model '{model.__class__.__name__}' is not supported by the scorer '{self.__class
 - MLMScorer supports MXNet GluonNLP MLMs: {SUPPORTED_MLMS}
 - LMScorer supports MXNet GluonNLP LMs: {SUPPORTED_LMS}
 - MLMScorerPT supports PyTorch Transformers MLMs:
+    - 'albert-*' (wrapped by AlbertForMaskedLMOptimized)
     - 'bert-*' (wrapped by BertForMaskedLMOptimized)
     - 'distilbert-*' (wrapped by DistilBertForMaskedLMOptimized)
-    - 'xlm-*' (requires lang parameter, e.g, lang='en')
+    - 'xlm-*' (some variants require 'lang' parameter; XLM-R not supported)
 """)
         else:
             logging.warn(f"Created scorer of class '{self.__class__.__name__}'.")
@@ -544,13 +545,17 @@ class MLMScorerPT(BaseScorer):
 
     def __init__(self, *args, **kwargs):
         self._wwm = kwargs.pop('wwm') if 'wwm' in kwargs else False
-        self._lang = kwargs.pop('lang') if 'lang' in kwargs else False
+        self._lang = kwargs.pop('lang') if 'lang' in kwargs else None
         super().__init__(*args, **kwargs)
 
         if self._lang is not None and \
             not (isinstance(self._model, transformers.XLMWithLMHeadModel) \
                 and self._model.config.use_lang_emb):
             logging.warn("Language was set but this model does not use language embeddings!")
+        elif self._lang is None and \
+            (isinstance(self._model, transformers.XLMWithLMHeadModel) \
+                and self._model.config.use_lang_emb):
+            raise ValueError("Language was not set but this model uses language embeddings!")
 
         ### PyTorch-based
         self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -565,7 +570,7 @@ class MLMScorerPT(BaseScorer):
 
     @staticmethod
     def _check_support(model) -> bool:
-        return isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, BertForMaskedLMOptimized) or isinstance(model, DistilBertForMaskedLMOptimized)
+        return isinstance(model, transformers.XLMWithLMHeadModel) or isinstance(model, transformers.BertForMaskedLM) or isinstance(model, AlbertForMaskedLMOptimized) or isinstance(model, BertForMaskedLMOptimized) or isinstance(model, DistilBertForMaskedLMOptimized)
 
 
     def _ids_to_masked(self, token_ids: np.ndarray) -> List[Tuple[np.ndarray, List[int]]]:
@@ -711,7 +716,8 @@ class MLMScorerPT(BaseScorer):
 
                     split_size = token_ids.shape[0]
 
-                    if isinstance(self._model.module, BertForMaskedLMOptimized) or \
+                    if isinstance(self._model.module, AlbertForMaskedLMOptimized) or \
+                        isinstance(self._model.module, BertForMaskedLMOptimized) or \
                         isinstance(self._model.module, DistilBertForMaskedLMOptimized):
                         # Because BERT does not take a length parameter
                         alen = torch.arange(token_ids.shape[1], dtype=torch.long)
