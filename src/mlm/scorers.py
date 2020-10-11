@@ -39,7 +39,9 @@ class BaseScorer(ABC):
 Model '{model.__class__.__name__}' is not supported by the scorer '{self.__class__.__name__}'.
 - MLMScorer supports MXNet GluonNLP MLMs: {SUPPORTED_MLMS}
 - LMScorer supports MXNet GluonNLP LMs: {SUPPORTED_LMS}
-- MLMScorerPT supports PyTorch Transformers MLMs: BERTForMaskedLMOptimized (a wrapper around 'bert-*'), 'xlm-*', etc.
+- MLMScorerPT supports PyTorch Transformers MLMs:
+    - 'bert-*' (wrapped by BertForMaskedLMOptimized)
+    - 'xlm-*'
 """)
         else:
             logging.warn(f"Created scorer of class '{self.__class__.__name__}'.")
@@ -109,7 +111,6 @@ Model '{model.__class__.__name__}' is not supported by the scorer '{self.__class
             scores_per_token = [[None]*(true_tok_len+2) for true_tok_len in true_tok_lens]
         else:
             scores = np.zeros((len(corpus),))
-        scores_per_ctx = [mx.nd.zeros((len(corpus),), ctx=ctx) for ctx in self._ctxs]
 
         sent_count = 0
         batch_log_interval = 20
@@ -625,7 +626,6 @@ class MLMScorerPT(BaseScorer):
 
     def score(self, corpus: Corpus, temp: float = 1.0, split_size: int = 2000, ratio: float = 0, per_token: bool = False) -> List[float]:
 
-        assert per_token == False
         assert temp == 1.0
 
         # Turn corpus into a BERT-ready Dataset
@@ -643,20 +643,23 @@ class MLMScorerPT(BaseScorer):
         batch_sampler = nlp.data.sampler.FixedBucketSampler([sent_tuple[2] for sent_tuple in dataset], batch_size=split_size, ratio=ratio, num_shards=0, shuffle=False)
 
         logging.info(batch_sampler.stats())
+
         # dataloader = nlp.data.ShardedDataLoader(dataset, pin_memory=True, batch_sampler=batch_sampler, batchify_fn=batchify_fn, num_workers=num_workers, thread_pool=True)
         dataloader = nlp.data.ShardedDataLoader(dataset, batch_sampler=batch_sampler, batchify_fn=batchify_fn)
 
-        # Compute scores
-        scores = np.zeros((len(corpus),)) 
-        scores_per_ctx = [mx.nd.zeros((len(corpus),), ctx=ctx) for ctx in self._ctxs]
-
         # Compute sum (assumes dataset is in order)
         prev_sent_idx = None
-        num_true_toks = []
+        true_tok_lens = []
         for (curr_sent_idx, _, valid_length, _, _, _) in dataset:
             if curr_sent_idx != prev_sent_idx:
                 prev_sent_idx = curr_sent_idx
-                num_true_toks.append(valid_length - 2)
+                true_tok_lens.append(valid_length - 2)
+
+        # Compute scores (total or per-position)
+        if per_token:
+            scores_per_token = [[None]*(true_tok_len+2) for true_tok_len in true_tok_lens]
+        else:
+            scores = np.zeros((len(corpus),))
 
         sent_count = 0
         batch_log_interval = 20
@@ -664,13 +667,22 @@ class MLMScorerPT(BaseScorer):
         batch_score_accumulation = 1
         batch_sent_idxs_per_ctx = [[] for ctx in self._ctxs]
         batch_scores_per_ctx = [[] for ctx in self._ctxs]
+        batch_masked_positions_per_ctx = [[] for ctx in self._ctxs]
 
         def sum_accumulated_scores():
             for ctx_idx in range(len(self._ctxs)):
-                for batch_sent_idxs, batch_scores in zip(batch_sent_idxs_per_ctx[ctx_idx], batch_scores_per_ctx[ctx_idx]):
-                    np.add.at(scores, batch_sent_idxs, batch_scores.cpu().numpy())
+                for batch_sent_idxs, batch_scores, batch_masked_positions in zip(batch_sent_idxs_per_ctx[ctx_idx], batch_scores_per_ctx[ctx_idx], batch_masked_positions_per_ctx[ctx_idx]):
+                    if per_token:
+                        # Slow; only use when necessary
+                        for batch_sent_idx, batch_score, batch_masked_position in zip(batch_sent_idxs, batch_scores, batch_masked_positions):
+                            # scores_per_token[batch_sent_idx.asscalar()][int(batch_masked_position.asscalar())] = batch_score.asscalar().item()
+                            scores_per_token[batch_sent_idx][batch_masked_position.cpu().numpy().item()] = batch_score.cpu().numpy().item()
+                    else:
+                        # np.add.at(scores, batch_sent_idxs.asnumpy(), batch_scores.asnumpy())
+                        np.add.at(scores, batch_sent_idxs, batch_scores.cpu().numpy())
                 batch_sent_idxs_per_ctx[ctx_idx] = []
                 batch_scores_per_ctx[ctx_idx] = []
+                batch_masked_positions_per_ctx[ctx_idx] = []
 
         # For now just predicts the first non-cls token
         for batch_id, batch in enumerate(dataloader):
@@ -736,6 +748,7 @@ class MLMScorerPT(BaseScorer):
                     batch_sent_idxs_per_ctx[ctx_idx].append(sent_idxs)
                     out = out[list(range(split_size)), token_masked_ids]
                     batch_scores_per_ctx[ctx_idx].append(out)
+                    batch_masked_positions_per_ctx[ctx_idx].append(masked_positions)
 
             # Ideally we'd accumulate the scores when possible, but something like the below won't work
             # > scores[sent_idxs] += out
@@ -754,9 +767,10 @@ class MLMScorerPT(BaseScorer):
         # In case there are leftovers
         sum_accumulated_scores()
 
-        return scores.tolist(), num_true_toks
-
-
+        if per_token:
+            return scores_per_token, true_tok_lens
+        else:
+            return scores.tolist(), true_tok_lens
 
 
 class MLMBinner(MLMScorer):

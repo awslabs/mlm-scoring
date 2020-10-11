@@ -23,7 +23,7 @@ Some models are via [GluonNLP](https://github.com/dmlc/gluon-nlp) and others are
 from mlm.scorers import MLMScorer, MLMScorerPT, LMScorer
 from mlm.models import get_pretrained
 import mxnet as mx
-ctxs = [mx.gpu()]
+ctxs = [mx.cpu()] # or, e.g., [mx.gpu(0), mx.gpu(1)]
 
 # MXNet MLMs (use names from mlm.models.SUPPORTED_MLMS)
 model, vocab, tokenizer = get_pretrained(ctxs, 'bert-base-en-cased')
@@ -38,13 +38,15 @@ model, vocab, tokenizer = get_pretrained(ctxs, 'bert-base-cased')
 scorer = MLMScorerPT(model, vocab, tokenizer, ctxs)
 print(scorer.score_sentences(["Hello world!"]))
 # >> [-12.411025047302246]
+print(scorer.score_sentences(["Hello world!"], per_token=True))
+# >> [[None, -6.126738548278809, -5.501765727996826, -0.782496988773346, None]]
 
 # MXNet LMs (use names from mlm.models.SUPPORTED_LMS)
 model, vocab, tokenizer = get_pretrained(ctxs, 'gpt2-117m-en-cased')
 scorer = LMScorer(model, vocab, tokenizer, ctxs)
 print(scorer.score_sentences(["Hello world!"]))
 # >> [-15.995375633239746]
-print(scorer.score_sentences(["Hello world!"]), per_token=True)
+print(scorer.score_sentences(["Hello world!"], per_token=True))
 # >> [[-8.293947219848633, -6.387561798095703, -1.3138668537139893]]
 ```
 (MXNet and PyTorch interfaces will be unified soon!)
