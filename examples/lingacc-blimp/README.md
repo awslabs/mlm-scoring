@@ -41,6 +41,8 @@ echo "RoBERTa (large)"
 ```
 These give 82.6% and 86.5%, respectively. Human performance is 88.6%.
 
+See [the paper](https://www.aclweb.org/anthology/2020.acl-main.240/) for complete results. After the paper, we found `distilbert-base-cased` gives 78.3% and `albert-xxlarge-v2` gives 84.4%; details in [Issue #2](https://github.com/awslabs/mlm-scoring/issues/2).
+
 ## Pseudo-perplexities
 
 This gives token-level PPPLs of 59.2 on the acceptable sentences and 111.2 on the unacceptable ones:
